@@ -14,6 +14,7 @@ import tkinter.font as tkFont
 
 appGUUID = 'e8f0cabc-14e4-4d04-952b-613e6112400f'
 AlderonGamesCMDURL = 'https://launcher-cdn.alderongames.com/AlderonGamesCmd-Win64.exe'
+tokenFromFile = True
 
 class App:
     def __init__(self, root):
@@ -148,8 +149,17 @@ class App:
     def GCheckBox_779_command(self):
         print("command")
 
+''' now that I think of it config parser would probably be easier to manage all the config stuff. '''
+def get_token_from_file():
+    if not os.path.exists('./.token'):
+        #create .Token file to store our auth Token
+        with open('./.token', 'w+') as tFile:
+            #grab token from token input field
+            #once we have the token save it to the .token file
+            pass
+
 def download_AlderonGamesCMD():
-    if not os.path.exists(./AlderonGamesCMD_x64.exe':
+    if not os.path.exists('./AlderonGamesCMD_x64.exe'):
         urllib.request(AlderonGamesCMDURL, 'AdleronGamesCMD_x64.exe')
     else:
         print(f'AlderonGamesCMD is already installed.')
