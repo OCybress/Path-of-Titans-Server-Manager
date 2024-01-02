@@ -6,12 +6,14 @@ TODO:       Everything..
 '''
 import os
 import sys
+import urllib.request
 from datetime import datetime
 import subprocess
 import tkinter as tk
 import tkinter.font as tkFont
 
 appGUUID = 'e8f0cabc-14e4-4d04-952b-613e6112400f'
+AlderonGamesCMDURL = 'https://launcher-cdn.alderongames.com/AlderonGamesCmd-Win64.exe'
 
 class App:
     def __init__(self, root):
@@ -145,6 +147,12 @@ class App:
 
     def GCheckBox_779_command(self):
         print("command")
+
+def download_AlderonGamesCMD():
+    if not os.path.exists(./AlderonGamesCMD_x64.exe':
+        urllib.request(AlderonGamesCMDURL, 'AdleronGamesCMD_x64.exe')
+    else:
+        print(f'AlderonGamesCMD is already installed.')
 
 def update_server_command(INSTALL_DIR, BRANCH, AG_AUTH_TOKEN):
     if not INSTALL_DIR == '' or not BRANCH == '' or not AG_AUTH_TOKEN == '': 
