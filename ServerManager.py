@@ -2,10 +2,12 @@
 Author:     OCybress
 Date:       01-02-2024
 Summary:    A server manager for the video game Path of Titans.
+TODO:       Everything..
 '''
 import os
 import sys
 from datetime import datetime
+import subprocess
 import tkinter as tk
 import tkinter.font as tkFont
 
@@ -13,14 +15,17 @@ appGUUID = 'e8f0cabc-14e4-4d04-952b-613e6112400f'
 
 class App:
     def __init__(self, root):
-        sStartServerCommand = f''
-        sStopServerCommand = f''
-        sUpdateServerCommand = f''
+        
 
-
+        '''
+        lists of names and display text for buttons, labels, etc.
+        '''
         labelList = ['ServerName', 'AuthToken', 'Port', 'GUUID', 'InstallDir', 'Branch']
         labelText = ['Server Name', 'Auth Token', 'Port', 'GUUID', 'Install Dir', 'Branch']
         entryList = ['ServerName', 'AuthToken', 'Port', 'GUUID', 'InstallDir', 'Branch']
+        buttonList = ['StartServer','StopServer','UpdateServer']
+        buttonText = ['Start Server','Stop Server','Update Server']
+
         yStart = 20
         yStep = 30
         xStart = 20
@@ -34,8 +39,10 @@ class App:
         {LabelName:{objects: [tkinterLabel, [tkinkerEntry|button|message]}}
         '''
         componentDict = {}
-        
 
+        def get_value(entry):
+            return entry.get()
+        
         #setting title
         root.title("Path of Titans Server Manager")
         #setting window size
@@ -81,11 +88,6 @@ class App:
             step = step + yStep
             count = count + 1
 
-        '''
-        Gives controll of the text of the label. For testing only.
-        '''
-        #componentDict[labelList[0]]['objects'][0]['text'] = 'testing'
-
         GButton_909=tk.Button(root)
         GButton_909["bg"] = "#f0f0f0"
         ft = tkFont.Font(family='Times',size=10)
@@ -94,7 +96,17 @@ class App:
         GButton_909["justify"] = "center"
         GButton_909["text"] = "Button"
         GButton_909.place(x=30,y=90,width=70,height=25)
-        GButton_909["command"] = self.GButton_909_command
+        GButton_909["command"] = lambda : update_server_command(get_value(componentDict[labelList[4]]['objects'][1]),
+                                                            get_value(componentDict[labelList[5]]['objects'][1]),
+                                                            get_value(componentDict[labelList[1]]['objects'][1])
+                                                            )
+
+        '''
+        Gives controll of the text of the label. For testing only.
+        '''
+        #componentDict[labelList[0]]['objects'][0]['text'] = 'testing'
+
+        '''
 
         GCheckBox_779=tk.Checkbutton(root)
         ft = tkFont.Font(family='Times',size=10)
@@ -122,6 +134,10 @@ class App:
         GMessage_159["justify"] = "center"
         GMessage_159["text"] = "Message"
         GMessage_159.place(x=20,y=300,width=80,height=25)
+        '''
+    
+
+    
 
     def GButton_909_command(self):
         print("command")
@@ -129,6 +145,13 @@ class App:
 
     def GCheckBox_779_command(self):
         print("command")
+
+def update_server_command(INSTALL_DIR, BRANCH, AG_AUTH_TOKEN):
+    if not INSTALL_DIR == '' or not BRANCH == '' or not AG_AUTH_TOKEN == '': 
+        sUpdateServerCommand = f'{INSTALL_DIR}\AlderonGamesCmd-Win64.exe --game path-of-titans --server true --beta-branch {BRANCH} --auth-token {AG_AUTH_TOKEN} --install-dir {INSTALL_DIR}'
+        subprocess.run([sUpdateServerCommand])
+    else:
+        print(f'Error, one or more required options are empty')
 
 if __name__ == "__main__":
     root = tk.Tk()
