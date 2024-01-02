@@ -9,6 +9,8 @@ from datetime import datetime
 import tkinter as tk
 import tkinter.font as tkFont
 
+appGUUID = 'e8f0cabc-14e4-4d04-952b-613e6112400f'
+
 class App:
     def __init__(self, root):
         sStartServerCommand = f''
