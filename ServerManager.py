@@ -12,11 +12,9 @@ TODO:       Move update_server_command to a thread.
             Fixed issue with combo box's being appended with data from BRANCH.
             Made download_AlderonGamesCMD_thread its own thread.
                 Need to fix the way its killed ( its bad. )
+01/05/2024  Added server_start.
 
-Issues:     update_server_command using subprocess.run is suppoed to check for completion,
-                the process however does not exit, it states finished and sits there. requiring
-                the user to close the cmd window in turn terminates the server manager window.
-                need to look into this.
+Issues:     
             
 '''
 import os
@@ -42,6 +40,7 @@ appGUUID = 'e8f0cabc-14e4-4d04-952b-613e6112400f'
 AlderonGamesCMDURL = 'https://launcher-cdn.alderongames.com/AlderonGamesCmd-Win64.exe'
 GuuidRequestUrl = 'https://duckduckgo.com/?q=random+guid&atb=v296-1&ia=answer'
 tokenFromFile = True
+serverExeLocation = '/PathOfTitans/Binaries/Win64/PathOfTitansServer-Win64-Shipping.exe'
 
 config = cp.ConfigParser()
 threads = {}
@@ -167,6 +166,39 @@ class App:
             except PermissionError as e:
                 update_message(f'{e}')
 
+        def server_start():
+            '''
+            Works, need to add map as well.
+            needs its own thread. locks up main program.
+            '''
+            INSTALL_DIR = get_value(componentDict['InstallDir']['objects'][1])
+            SERVER_PORT = get_value(componentDict['Port']['objects'][1])
+            BRANCH = get_value(componentDict['Branch']['objects'][1])
+            AG_AUTH_TOKEN = get_value(componentDict['AuthToken']['objects'][1])
+            SERVER_GUUID = get_value(componentDict['GUUID']['objects'][1])
+            SERVER_DATABASE = get_value(componentDict['Database']['objects'][1])
+
+            try:
+                if not INSTALL_DIR == '' and not BRANCH == '' and not AG_AUTH_TOKEN == '' and not SERVER_PORT == '' and not SERVER_GUUID == '' and not SERVER_DATABASE == '':
+                    update_message(f'Starting server .')
+                    if os.path.exists('AlderonGamesCMD_x64.exe'):
+                        update_message(f'Checking path: {INSTALL_DIR}{serverExeLocation}')
+                        if os.path.exists(f'{INSTALL_DIR}{serverExeLocation}'):
+                            exe = f'{INSTALL_DIR}{serverExeLocation}'
+                            sUpdateServerCommand = f'{INSTALL_DIR}{serverExeLocation} --game path-of-titans -Port={SERVER_PORT} -BranchKey={BRANCH} -log -AuthToken={AG_AUTH_TOKEN} -ServerGUID={SERVER_GUUID} -Database={SERVER_DATABASE}'
+                            # This does not close out all the way, when its done the software says 'finished'
+                            # if the user closes the cmd window it apears to close the server manager as well.
+                            if subprocess.run(sUpdateServerCommand) == 0:
+                                update_message(f'Server Started.')
+                        else:
+                            update_message(f'Make sure your install directory is setup properly or that you have\n installed the server.')
+                    else:
+                        update_message(f'You need to download the AlderonGameCMD_x64.exe file first.')
+                else:
+                    update_message(f'Error, one or more required options are empty')
+            except PermissionError as e:
+                update_message(f'{e}')
+
         def combo_box_database_selection_changed(event):
             selection = comboBox_database.get()
             print(f'Selected option: {selection}')
@@ -178,8 +210,6 @@ class App:
         def combo_box_map_selection_changed(event):
             selection = comboBox_map.get()
             print(f'Selected option: {selection}')
-
-        
 
         #deploy labels, more compact than having a bunch of label blocks.
         count = 0
@@ -316,6 +346,16 @@ class App:
         button_update_server["text"] = "Update Server"
         button_update_server.place(x=30,y=316,width=100,height=25)
         button_update_server["command"] = lambda : update_server_command()
+
+        button_server_run=tk.Button(root)
+        button_server_run["bg"] = "#f0f0f0"
+        ft = tkFont.Font(family='Times',size=10)
+        button_server_run["font"] = ft
+        button_server_run["fg"] = "#000000"
+        button_server_run["justify"] = "center"
+        button_server_run["text"] = "Start Server"
+        button_server_run.place(x=140,y=316,width=100,height=25)
+        button_server_run["command"] = lambda : server_start()
 
         '''
         GCheckBox_779=tk.Checkbutton(root)
