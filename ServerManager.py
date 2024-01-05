@@ -2,10 +2,26 @@
 Author:     OCybress
 Date:       01-02-2024
 Summary:    A server manager for the video game Path of Titans.
-TODO:       Everything..
+TODO:       Move update_server_command to a thread.
+            Save all config information for future retrieval so the program does not forget
+                its already installed the server etc.
+            create run server button and function.
+            Added admin UAC request.
+            Changed message area to tkinter text with scroll bar.
+            redirected all messages to text area.
+            Fixed issue with combo box's being appended with data from BRANCH.
+            Made download_AlderonGamesCMD_thread its own thread.
+                Need to fix the way its killed ( its bad. )
+
+Issues:     update_server_command using subprocess.run is suppoed to check for completion,
+                the process however does not exit, it states finished and sits there. requiring
+                the user to close the cmd window in turn terminates the server manager window.
+                need to look into this.
+            
 '''
 import os
 import sys
+import ctypes
 from pathlib import Path
 from urllib.request import urlretrieve
 import requests
@@ -18,6 +34,9 @@ from tkinter.tix import *
 from tkinter import filedialog
 import uuid
 import configparser as cp
+import threading
+
+'TODO: Setup versioning..'
 
 appGUUID = 'e8f0cabc-14e4-4d04-952b-613e6112400f'
 AlderonGamesCMDURL = 'https://launcher-cdn.alderongames.com/AlderonGamesCmd-Win64.exe'
@@ -25,6 +44,16 @@ GuuidRequestUrl = 'https://duckduckgo.com/?q=random+guid&atb=v296-1&ia=answer'
 tokenFromFile = True
 
 config = cp.ConfigParser()
+threads = {}
+
+def is_admin():
+    '''
+    Request admin acess needed for running the AlderonGamesCMD_x64.exe
+    '''
+    try:
+        return ctypes.windll.shell32.IsUserAnAdmin()
+    except:
+        return False
 
 class App:
     def __init__(self, root):
@@ -55,45 +84,6 @@ class App:
         '''
         componentDict = {}
 
-        def get_value(entry):
-            return entry.get()
-
-        def get_install_dir():
-            print(f'Getting install dir.')
-            componentDict[labelList[4]]['objects'][1].delete(0, END)
-            x = filedialog.askdirectory(
-                initialdir=Path('.\\').parent
-                )
-            print(f'Got dir: {x}')
-            componentDict[labelList[4]]['objects'][1].insert(0, x)
-
-        def get_new_guuid():
-            componentDict['GUUID']['objects'][1].delete(0, END)
-            componentDict['GUUID']['objects'][1].insert(0, uuid.uuid4())
-
-        def update_server_command():
-            INSTALL_DIR = get_value(componentDict['InstallDir']['objects'][1])
-            BRANCH = get_value(componentDict['Branch']['objects'][1])
-            AG_AUTH_TOKEN = get_value(componentDict['AuthToken']['objects'][1])
-
-            if not INSTALL_DIR == '' and not BRANCH == '' and not AG_AUTH_TOKEN == '':
-                if os.path.exists('AlderonGamesCMD_x64.exe'):
-                    sUpdateServerCommand = f'AlderonGamesCMD_x64.exe --game path-of-titans --server true --beta-branch {BRANCH} --auth-token {AG_AUTH_TOKEN} --install-dir {INSTALL_DIR}'
-                    print(f'{sUpdateServerCommand}')
-                    subprocess.run([sUpdateServerCommand])
-                else:
-                    print(f'You need to download the AlderonGameCMD_x64.exe file first.')
-            else:
-                print(f'Error, one or more required options are empty')
-
-        def combo_box_branch_selection_changed(event):
-            selection = comboBox_branch.get()
-            print(f'Selected option: {selection}')
-
-        def combo_box_map_selection_changed(event):
-            selection = comboBox_map.get()
-            print(f'Selected option: {selection}')
-        
         #setting title
         root.title("Path of Titans Server Manager")
         #setting window size
@@ -104,6 +94,92 @@ class App:
         alignstr = '%dx%d+%d+%d' % (width, height, (screenwidth - width) / 2, (screenheight - height) / 2)
         root.geometry(alignstr)
         root.resizable(width=False, height=False)
+
+        '''
+        Used to display messages to the user.
+        TODO: change this to tkinter text, message does not support scrolling.
+        DONE.
+        '''
+        messageVar = StringVar()
+        message = Text(root, width=540, relief=RAISED, fg="#ffffff", bg="#000000")
+        message.place(x=(600-540)/2,y=350,width=540,height=128)
+        tkSb = Scrollbar(message, orient='vertical')
+        tkSb.pack(side=RIGHT, fill='y')
+        tkSb.config(command=message.yview)
+
+        def get_value(entry):
+            '''
+            get a value stored in a tk object
+            '''
+            return entry.get()
+
+        def update_message(var):
+            '''
+            Updates the message box in the bottom of the program.
+            '''
+            messageTime = str(datetime.now())[0:19]
+            message.insert(END, f'\n{[messageTime]} - {var}')
+
+        def get_install_dir():
+            '''
+            When the user clicks the directory icon this function
+            asks them where they would like to install.
+            '''
+            update_message(f'Getting install dir.')
+            componentDict[labelList[4]]['objects'][1].delete(0, END)
+            x = filedialog.askdirectory(
+                initialdir=Path('.\\').parent
+                )
+            update_message(f'Got dir: {x}')
+            componentDict[labelList[4]]['objects'][1].insert(0, x)
+
+        def get_new_guuid():
+            '''
+            Generates a new GUUID for the server, this is required to create a server.
+            '''
+            update_message(f'Generating new GUUID.')
+            componentDict['GUUID']['objects'][1].delete(0, END)
+            componentDict['GUUID']['objects'][1].insert(0, uuid.uuid4())
+
+        def update_server_command():
+            '''
+            Installs / updates the alderonGamesCMD_x64
+            Working.
+            Tranfer this to its own thread.
+            '''
+            INSTALL_DIR = get_value(componentDict['InstallDir']['objects'][1])
+            BRANCH = get_value(componentDict['Branch']['objects'][1])
+            AG_AUTH_TOKEN = get_value(componentDict['AuthToken']['objects'][1])
+            try:
+                if not INSTALL_DIR == '' and not BRANCH == '' and not AG_AUTH_TOKEN == '':
+                    update_message(f'Updating server files.')
+                    if os.path.exists('AlderonGamesCMD_x64.exe'):
+                        exe = os.path.abspath('AlderonGamesCMD_x64.exe')
+                        sUpdateServerCommand = f'{exe} --game path-of-titans --server true --beta-branch {BRANCH} --auth-token {AG_AUTH_TOKEN} --install-dir "{INSTALL_DIR}"'
+                        # This does not close out all the way, when its done the software says 'finished'
+                        # if the user closes the cmd window it apears to close the server manager as well.
+                        if subprocess.run(sUpdateServerCommand) == 0:
+                            update_message(f'Install / Update complete.')
+                    else:
+                        update_message(f'You need to download the AlderonGameCMD_x64.exe file first.')
+                else:
+                    update_message(f'Error, one or more required options are empty')
+            except PermissionError as e:
+                update_message(f'{e}')
+
+        def combo_box_database_selection_changed(event):
+            selection = comboBox_database.get()
+            print(f'Selected option: {selection}')
+
+        def combo_box_branch_selection_changed(event):
+            selection = comboBox_branch.get()
+            print(f'Selected option: {selection}')
+
+        def combo_box_map_selection_changed(event):
+            selection = comboBox_map.get()
+            print(f'Selected option: {selection}')
+
+        
 
         #deploy labels, more compact than having a bunch of label blocks.
         count = 0
@@ -177,7 +253,7 @@ class App:
             values=['Local', 'Remote']
         )
         comboBox_database.set('Local')
-        comboBox_database.bind('<<ComboboxSelected>>', combo_box_branch_selection_changed)
+        comboBox_database.bind('<<ComboboxSelected>>', combo_box_database_selection_changed)
         tt.bind_widget(comboBox_database, balloonmsg='Server can use a Local or Remote Database. Specified using -Database=Local or -Database=Remote. We recommend using a Local Database unless you plan on connecting shared character data between servers.')
         comboBox_database.place(x=entryXStart,y=170,width=entryWidth,height=entryHeight)
 
@@ -200,9 +276,9 @@ class App:
         comboBox_map.bind('<<ComboboxSelected>>', combo_box_map_selection_changed)
         comboBox_map.place(x=entryXStart,y=230,width=entryWidth,height=entryHeight)
 
-        componentDict['Branch']['objects'].append(comboBox_database)
+        componentDict['Database']['objects'].append(comboBox_database)
         componentDict['Branch']['objects'].append(comboBox_branch)
-        componentDict['Branch']['objects'].append(comboBox_map)
+        componentDict['Map']['objects'].append(comboBox_map)
 
 
         button_install_alderon_cmd=tk.Button(root)
@@ -213,7 +289,13 @@ class App:
         button_install_alderon_cmd["justify"] = "center"
         button_install_alderon_cmd["text"] = "Install AlderonCMD"
         button_install_alderon_cmd.place(x=30,y=256,width=120,height=25)
-        button_install_alderon_cmd["command"] = lambda : download_AlderonGamesCMD()
+        downloadThread = threading.Thread(target=download_AlderonGamesCMD_thread, args=('downloadThread', update_message, messageVar))
+        #Super cluedgy.... will fix later.
+        threads['downloadThread'] = []
+        threads['downloadThread'].append(downloadThread)
+        threads['downloadThread'].append(False)
+        button_install_alderon_cmd["command"] = lambda : download_thread_helper("downloadThread")
+        #button_install_alderon_cmd["command"] = lambda : download_AlderonGamesCMD(update_message, messageVar)
 
         button_install_server=tk.Button(root)
         button_install_server["bg"] = "#f0f0f0"
@@ -233,17 +315,9 @@ class App:
         button_update_server["justify"] = "center"
         button_update_server["text"] = "Update Server"
         button_update_server.place(x=30,y=316,width=100,height=25)
-        button_update_server["command"] = lambda : update_server_command(get_value(componentDict[labelList[4]]['objects'][1]),
-                                                            get_value(componentDict[labelList[5]]['objects'][1]),
-                                                            get_value(componentDict[labelList[1]]['objects'][1])
-                                                            )
+        button_update_server["command"] = lambda : update_server_command()
 
         '''
-        Gives controll of the text of the label. For testing only.
-        '''
-        #componentDict[labelList[0]]['objects'][0]['text'] = 'testing'
-        '''
-
         GCheckBox_779=tk.Checkbutton(root)
         ft = tkFont.Font(family='Times',size=10)
         GCheckBox_779["font"] = ft
@@ -254,31 +328,7 @@ class App:
         GCheckBox_779["offvalue"] = "0"
         GCheckBox_779["onvalue"] = "1"
         GCheckBox_779["command"] = self.GCheckBox_779_command
-
-        GListBox_381=tk.Listbox(root)
-        GListBox_381["borderwidth"] = "1px"
-        ft = tkFont.Font(family='Times',size=10)
-        GListBox_381["font"] = ft
-        GListBox_381["fg"] = "#333333"
-        GListBox_381["justify"] = "center"
-        GListBox_381.place(x=20,y=250,width=80,height=25)
-
-        GMessage_159=tk.Message(root)
-        ft = tkFont.Font(family='Times',size=10)
-        GMessage_159["font"] = ft
-        GMessage_159["fg"] = "#333333"
-        GMessage_159["justify"] = "center"
-        GMessage_159["text"] = "Message"
-        GMessage_159.place(x=20,y=300,width=80,height=25)
         '''
-    
-
-    def GButton_909_command(self):
-        print("command")
-
-
-    def GCheckBox_779_command(self):
-        print("command")
 
 
 def get_config():
@@ -311,23 +361,60 @@ def get_token_from_file():
             #once we have the token save it to the .token file
             pass
 
-def download_AlderonGamesCMD():
+def download_thread_helper(name):
+    '''
+    gross way of dealing with the download thread. 
+    I don't like this, short on time and need to fix later.
+    '''
+    if not threads[name][1] == True:
+        threads[name][0].start()
+    else:
+        threads[name][0].join()
+        print(f'[Thread] - {name} killed.')
+        del threads[name]
+
+def download_AlderonGamesCMD_thread(name, update_message_func, messageVar):
+    print(f'Threads contents: {threads}')
     if not os.path.exists('AlderonGamesCMD_x64.exe'):
-        #path, headers = urlretrieve(AlderonGamesCMDURL, 'AdleronGamesCMD_x64.exe')
-        #for name, value in headers.items():
-        #    print(f'{name, value}')
+        update_message_func(f'Downloading AslersonGamesCMD_x64.exe\n')
         with requests.get(AlderonGamesCMDURL, stream=True) as response:
             response.headers
             with open("AlderonGamesCMD_x64.exe", mode='wb') as file:
+                count = 0
                 for chunk in response.iter_content(chunk_size=10 * 1024):
                     file.write(chunk)
+                    count += 1
+                    if count == 10:
+                        messageVar.set(messageVar.get() + ".")
+                        count = 0
+            update_message_func('Download complete.')
+            threads[name][1] = True
+            print(f'Threads contents: {threads}')
     else:
-        print(f'AlderonGamesCMD is already installed.')
-
-
+        update_message_func(f'AlderonGamesCMD is already installed.')
+        threads[name][1] = True
+        print(f'Threads contents: {threads}')
 
 if __name__ == "__main__":
     root = tkinter.tix.Tk()
     tt = Balloon(root)
     app = App(root)
-    root.mainloop()
+    if is_admin():
+        root.mainloop()
+    else:
+        '''
+        Pulled from Stackoverflow: https://stackoverflow.com/questions/130763/request-uac-elevation-from-within-a-python-script
+        Martín De la Fuente
+        Notes:
+        Also note that if you converted you python script into an executable file (using tools like py2exe, cx_freeze, pyinstaller) then you should use sys.argv[1:] instead of sys.argv in the fourth parameter.
+
+        Some of the advantages here are:
+
+        No external libraries required. It only uses ctypes and sys from standard library.
+        Works on both Python 2 and Python 3.
+        There is no need to modify the file resources nor creating a manifest file.
+        If you don't add code below if/else statement, the code won't ever be executed twice.
+        You can get the return value of the API call in the last line and take an action if it fails (code <= 32). Check possible return values here.
+        You can change the display method of the spawned process modifying the sixth parameter.
+        '''
+        ctypes.windll.shell32.ShellExecuteW(None, "runas", sys.executable, " ".join(sys.argv), None, 1)
