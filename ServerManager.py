@@ -14,7 +14,15 @@ TODO:       Move update_server_command to a thread.
                 Need to fix the way its killed ( its bad. )
 01/05/2024  Added server_start.
 
-Issues:     
+Issues:
+
+TODO:       Move app class to its own module.
+            Make a thread factory module.
+            Move all threads to thread factory.
+            Add logging module.
+            Add config module.
+            Add ability to edit settings in game.ini
+            Group buttons and entry's with frames for better ux flow.    
             
 '''
 import os
