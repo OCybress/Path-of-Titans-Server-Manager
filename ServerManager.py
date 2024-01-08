@@ -31,13 +31,17 @@ TODO:       [x] Move app class to its own module.
 import os
 import sys
 import ctypes
+import atexit
+import signal
+from functools import partial
 import tkinter as tk
 from tkinter import ttk
 from tkinter.tix import Balloon
 from tkinter.tix import *
-from app_module import App
+from appModule import App
 import log
 from err import error
+from threadFactory import ThreadFactory
 
 'TODO: Setup versioning..'
 appGUUID = 'e8f0cabc-14e4-4d04-952b-613e6112400f'
@@ -48,9 +52,11 @@ mod_name, branch = __name__, str(__file__.split(os.path.sep)[-2])
 VERSION_STRING = f'Loading {mod_name} module, version {__version__}, from branch {branch}.'
 
 # Configure logging
-log.setup_logging(f'.\log.txt')
+log.setup_logging()
 log.write('//////////////////////////////////////////////////////////////////////////\n//               Program Start                                          //\n//////////////////////////////////////////////////////////////////////////')
 log.write('Loading modules.\n' + '\n'.join([log.VERSION_STRING, VERSION_STRING, 'Loading modules complete.']))
+
+
 
 def is_admin():
     '''
@@ -61,34 +67,64 @@ def is_admin():
     except:
         return False
 
+def cleanup_function(thread_factory):
+    # Kill the thread using the ThreadFactory
+    log.write(f'Killing Threads.')
+    for thread in thread_factory.threads:
+        log.write(f'Killing thread Id {id(thread)}.')
+        thread_factory.kill_thread(id(thread))
+    log.write(f'All threads killed. Main thread going down.')
+        
+# Handle SIGTERM signal
+def signal_handler(signum, frame, thread_factory):
+    log.write(f"Received signal {signum}. Cleaning up...")
+    cleanup_funcrion(thread_factory)
+    sys.exit(0)
+
 def main():
-    root = tkinter.tix.Tk()
-    tt = Balloon(root)
+    try:
+        root = tkinter.tix.Tk()
+        tt = Balloon(root)
 
-    #thread_factory = ThreadFactory()
+        thread_factory = ThreadFactory(log)
+        # Start monitoring threads
+        thread_factory.start_monitoring()
 
-    app = App(root, tt) #(root, thread_factory)
+        app = App(root, tt, thread_factory)
 
-    if is_admin():
-        root.mainloop()
-    else:
-        '''
-        Pulled from Stackoverflow: https://stackoverflow.com/questions/130763/request-uac-elevation-from-within-a-python-script
-        Martín De la Fuente
-        Notes:
-        Also note that if you converted you python script into an executable file (using tools like py2exe, cx_freeze, pyinstaller) then you should use sys.argv[1:] instead of sys.argv in the fourth parameter.
+        log.write("registering cleanup handler...")
+        # Register the cleanup function for a normal exit.
+        atexit.register(cleanup_function, thread_factory)
+        cleanup_handler = partial(signal_handler, thread_factory=thread_factory)
+        signal.signal(signal.SIGINT, cleanup_handler)
+        signal.signal(signal.SIGTERM, cleanup_handler)
 
-        Some of the advantages here are:
+        if is_admin():
+            root.mainloop()
+        else:
+            '''
+            Pulled from Stackoverflow: https://stackoverflow.com/questions/130763/request-uac-elevation-from-within-a-python-script
+            Martín De la Fuente
+            Notes:
+            Also note that if you converted you python script into an executable file (using tools like py2exe, cx_freeze, pyinstaller) then you should use sys.argv[1:] instead of sys.argv in the fourth parameter.
 
-        No external libraries required. It only uses ctypes and sys from standard library.
-        Works on both Python 2 and Python 3.
-        There is no need to modify the file resources nor creating a manifest file.
-        If you don't add code below if/else statement, the code won't ever be executed twice.
-        You can get the return value of the API call in the last line and take an action if it fails (code <= 32). Check possible return values here.
-        You can change the display method of the spawned process modifying the sixth parameter.
-        '''
-        ctypes.windll.shell32.ShellExecuteW(None, "runas", sys.executable, " ".join(sys.argv), None, 1)
+            Some of the advantages here are:
 
+            No external libraries required. It only uses ctypes and sys from standard library.
+            Works on both Python 2 and Python 3.
+            There is no need to modify the file resources nor creating a manifest file.
+            If you don't add code below if/else statement, the code won't ever be executed twice.
+            You can get the return value of the API call in the last line and take an action if it fails (code <= 32). Check possible return values here.
+            You can change the display method of the spawned process modifying the sixth parameter.
+            '''
+            ctypes.windll.shell32.ShellExecuteW(None, "runas", sys.executable, " ".join(sys.argv), None, 1)
+    except SystemExit:
+        log.write('Forceful exit, running cleanup.')
+        cleanup_function(thread_factory)
+        sys.exit(0)
+
+    
+    
 
 if __name__ == "__main__":
     main()

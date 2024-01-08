@@ -6,6 +6,11 @@ Updates:    01/08/2024  Moved App class to its own module.
                         Cleaned up App class.
                         Added get_external_ip function.
                         Added get_internal_ip function.
+            01/09/2024  message box scroll by now auto scrolls with messages.
+                        thread_factory is working, need to migrate the rest of the 
+                            threads to use thread factory.
+                        added exit button to allow for proper program termination.
+
                         
        
             
@@ -37,7 +42,7 @@ tokenFromFile = True
 serverExeLocation = '/PathOfTitans/Binaries/Win64/PathOfTitansServer-Win64-Shipping.exe'
 
 class App:
-    def __init__(self, root, tt):
+    def __init__(self, root, tt, thread_factory):
         '''
         lists of names and display text for buttons, labels, etc.
         '''
@@ -65,7 +70,7 @@ class App:
         '''
         self.componentDict = {}
 
-        #self.thread_factory = thread_factory
+        self.thread_factory = thread_factory
         self.threads = {}
         self.create_gui(root, tt)
 
@@ -95,14 +100,21 @@ class App:
     def update_message(self, var, nl=True):
         '''
         Updates the message box in the bottom of the program.
+
+        Parameters:
+        - var: The message to be displayed.
+        - nl: Boolean flag to indicate whether to add a newline.
+
+        Returns:
+        - None
         '''
-        messageTime = str(datetime.now())[0:19]
-        if nl:
-            self.message.insert(END, f'\n{[messageTime]} - {var}')
-            log.write(f'\n{[messageTime]} - {var}', debug=True)
-        else:
-            self.message.insert(END, f'{var}', debug=True)
-            log.write(f'{var}')
+        message_time = str(datetime.now())[:19]
+        formatted_message = f'\n{message_time} - {var}' if nl else f'{var}'
+
+        self.message.insert(tk.END, formatted_message)
+        log.write(formatted_message, debug=True)
+
+        self.message.yview_moveto(1.0)
 
     def get_install_dir(self):
         '''
@@ -125,7 +137,7 @@ class App:
         self.componentDict['GUUID']['objects'][1].delete(0, END)
         self.componentDict['GUUID']['objects'][1].insert(0, uuid.uuid4())
 
-    def update_server_command(self):
+    def update_server_command(self, thread_factory, thread):
         '''
         Installs / updates the alderonGamesCMD_x64
         Working.
@@ -142,9 +154,12 @@ class App:
                     sUpdateServerCommand = f'{exe} --game path-of-titans --server true --beta-branch {BRANCH} --auth-token {AG_AUTH_TOKEN} --install-dir "{INSTALL_DIR}"'
                     # This does not close out all the way, when its done the software says 'finished'
                     # if the user closes the cmd window it apears to close the server manager as well.
-                    if subprocess.run(sUpdateServerCommand) == 0:
+                    result = subprocess.run(sUpdateServerCommand, capture_output=True, text=True)
+                    if result.returncode == 0:
                         #Need to check the status of the thread when we move this to the thread factory.
+                        self.update_message(f'{result.stdout}')
                         self.update_message(f'Install / Update complete.')
+                        thread_factory.kill_thread(thread_factory.threads[id(thread)])
                 else:
                     self.update_message(f'You need to download the AlderonGameCMD_x64.exe file first.')
             else:
@@ -216,12 +231,11 @@ class App:
         TODO: change this to tkinter text, message does not support scrolling.
         DONE.
         '''
-        #messageVar = StringVar()
         self.message = Text(root, width=540, relief=RAISED, fg="#ffffff", bg="#000000")
         self.message.place(x=(600-540)/2,y=350,width=540,height=128)
-        tkSb = Scrollbar(self.message, orient='vertical')
-        tkSb.pack(side=RIGHT, fill='y')
-        tkSb.config(command=self.message.yview)
+        self.tkSb = Scrollbar(self.message, orient='vertical')
+        self.tkSb.pack(side=RIGHT, fill='y')
+        self.tkSb.config(command=self.message.yview)
 
         #deploy labels, more compact than having a bunch of label blocks.
         count = 0
@@ -347,7 +361,8 @@ class App:
         button_install_server["justify"] = "center"
         button_install_server["text"] = "Install Server"
         button_install_server.place(x=30,y=286,width=100,height=25)
-        button_install_server["command"] = lambda : self.update_server_command()
+        install_thread = self.thread_factory.create(self.update_server_command, args=(self.thread_factory, 'install thread'))
+        button_install_server["command"] = lambda : install_thread.start()
 
         button_update_server=tk.Button(root)
         button_update_server["bg"] = "#f0f0f0"
@@ -368,6 +383,16 @@ class App:
         button_server_run["text"] = "Start Server"
         button_server_run.place(x=140,y=316,width=100,height=25)
         button_server_run["command"] = lambda : self.server_start()
+
+        button_exit_program=tk.Button(root)
+        button_exit_program["bg"] = "#f0f0f0"
+        ft = tkFont.Font(family='Times',size=10)
+        button_exit_program["font"] = ft
+        button_exit_program["fg"] = "#000000"
+        button_exit_program["justify"] = "center"
+        button_exit_program["text"] = "Exit"
+        button_exit_program.place(x=250,y=316,width=100,height=25)
+        button_exit_program["command"] = lambda : sys.exit(0)
 
         '''
         GCheckBox_779=tk.Checkbutton(root)
