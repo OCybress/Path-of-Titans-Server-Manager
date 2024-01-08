@@ -80,48 +80,6 @@ def write(data, prepend_timestamp=True, debug=False):
         l_file.write(log_entry)
     except Exception as e:
         error(e, mod_name)
-'''
-previous_caller = ''
-
-def write(data, t=True, debug=False):
-    """
-    Writes data to the log file.
-
-    Parameters:
-    - data: The data to be written.
-    - t: Boolean flag to indicate whether to prepend a timestamp.
-
-    Returns:
-    - None
-    """
-    try:
-        global l_file
-        global previous_caller
-
-        frame = inspect.stack()[2]
-        callers = [frame.function]
-
-        for frame_info in iter(inspect.stack()):
-            callers.append('__main__' if frame_info.function == '<module>' else frame_info.function)
-
-        caller_str = ' --> '.join(reversed(callers))
-
-        w_time = str(datetime.now())[10:19]
-        log_message = f'Module: {__name__} | {caller_str} | Data:\n{data}'
-
-        if t:
-            if debug:
-                l_file.write(f'[{w_time}] \r\n-{log_message}\r\n')
-            else:
-                l_file.write(f'[{w_time}] \r\n-{data}\r\n')
-        else:
-            if debug:
-                l_file.write(f'-{data}\r\n')
-            else:
-                l_file.write(f'-{log_message}\r\n')
-    except Exception as e:
-        error(e, mod_name)
-'''
 
 def close_log():
     """
