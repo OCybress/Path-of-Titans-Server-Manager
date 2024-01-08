@@ -1,9 +1,10 @@
-.token
+*.token
 AlderonGamesCMD_x64.exe
-.pyc
+*.pyc
 __pycache__
 Engine
 PathOfTitans
 hotfix.dat
 version.dat
 PotServer
+*.log
