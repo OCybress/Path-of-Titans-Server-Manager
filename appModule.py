@@ -16,6 +16,10 @@ Updates:    01/08/2024  Moved App class to its own module.
                              will add feature later to add settings, so user does not 
                              have to find Game.ini and edit manually.
                         added a proper menu bar. will migrate buttons to the menu bar.
+            01-08-2024  integrated settings Editor.
+                        integrated config manager.
+                        Moved all threads to Thread Factory
+                        Program now reads ./config/config.ini to load user saved settings ( profile )
 
                         
        
@@ -39,23 +43,34 @@ import socket
 from settingsEditor import GameSettingsEditor
 import log
 from err import error
+from configManager import ConfigManager
 
 'TODO: Setup versioning..'
 
-appGUUID = 'e8f0cabc-14e4-4d04-952b-613e6112400f'
+appGUID = 'e8f0cabc-14e4-4d04-952b-613e6112400f'
 AlderonGamesCMDURL = 'https://launcher-cdn.alderongames.com/AlderonGamesCmd-Win64.exe'
-GuuidRequestUrl = 'https://duckduckgo.com/?q=random+guid&atb=v296-1&ia=answer'
+GUIDRequestUrl = 'https://duckduckgo.com/?q=random+guid&atb=v296-1&ia=answer'
 tokenFromFile = True
 serverExeLocation = '/PathOfTitans/Binaries/Win64/PathOfTitansServer-Win64-Shipping.exe'
+
+#Tool tip messages.
+MSG_TT_GET_INSTALL_DIR = 'Select the directory to install the server. default is the server manager root dir.'
+MSG_TT_GENERATE_GUID = 'This will generate a new GUID for your server, if you already have one in config it should show up here.'
+MSG_TT_SERVER_DATABASE = 'Server can use a Local or Remote Database. Specified using -Database=Local or -Database=Remote. We recommend using a Local Database unless you plan on connecting shared character data between servers.'
+MSG_TT_SERVER_BRANCH = 'Right now we recommend using production as the Beta Branch, in some rare cases, you might want to use the other branch demo-public-test'
+MSG_TT_SERVER_MAP = 'Select the map you want to host.'
+MSG_TT_ALDERON_DOWNLOAD = 'Downloads the AlderonGamesCMD_x64.exe'
+MSG_TT_SERVER_INSTALL = 'Downloads the Path of Titans server files.'
+MSG_TT_SERVER_UPDATE = 'Updates the Path of Titans server files.'
 
 class App:
     def __init__(self, root, tt, thread_factory):
         '''
         lists of names and display text for buttons, labels, etc.
         '''
-        self.labelList = ['ServerName', 'AuthToken', 'Port', 'GUUID', 'InstallDir', 'Database', 'Branch', 'Map']
-        self.labelText = ['Server Name', 'Auth Token', 'Port', 'GUUID', 'Install Dir', 'Database', 'Branch', 'Map']
-        self.entryList = ['ServerName', 'AuthToken', 'Port', 'GUUID', 'InstallDir']
+        self.labelList = ['ServerName', 'AuthToken', 'Port', 'GUID', 'InstallDir', 'Database', 'Branch', 'Map']
+        self.labelText = ['Server Name', 'Auth Token', 'Port', 'GUID', 'Install Dir', 'Database', 'Branch', 'Map']
+        self.entryList = ['ServerName', 'AuthToken', 'Port', 'GUID', 'InstallDir']
         self.buttonList = ['StartServer','StopServer','UpdateServer']
         self.buttonText = ['Start Server','Stop Server','Update Server']
 
@@ -72,11 +87,21 @@ class App:
         self.entryJustify = 'left'
         self.entryForgroundColor = "#333333"
 
+        #Server config information
+        self.INSTALL_DIR = StringVar()
+        self.SERVER_NAME = StringVar()
+        self.SERVER_PORT = StringVar()
+        self.SERVER_BRANCH = StringVar()
+        self.SERVER_DATABASE = StringVar()
+        self.SERVER_GUID = StringVar()
+        self.AUTH_TOKEN = StringVar()
+
         '''
         {LabelName:{objects: [tkinterLabel, [tkinkerEntry|button|message]}}
         '''
         self.componentDict = {}
 
+        self.configManager = ConfigManager('./config/config.ini')
         self.thread_factory = thread_factory
         self.threads = {}
         self.root = root
@@ -118,7 +143,7 @@ class App:
     def edit_game_ini(self):
         # Initialize and open the GameSettingsEditor window
         settings_editor_window = tk.Toplevel(self.root)
-        settings_editor = GameSettingsEditor(settings_editor_window)
+        settings_editor = GameSettingsEditor(settings_editor_window, self.update_message, self.INSTALL_DIR)
         settings_editor_window.transient(self.root)
         settings_editor_window.grab_set()
         self.root.wait_window(settings_editor_window)
@@ -183,14 +208,15 @@ class App:
             )
         self.update_message(f'Got dir: {x}')
         self.componentDict[self.labelList[4]]['objects'][1].insert(0, x)
+        self.INSTALL_DIR = x
 
-    def get_new_guuid(self):
+    def get_new_guid(self):
         '''
-        Generates a new GUUID for the server, this is required to create a server.
+        Generates a new GUID for the server, this is required to create a server.
         '''
-        self.update_message(f'Generating new GUUID.')
-        self.componentDict['GUUID']['objects'][1].delete(0, END)
-        self.componentDict['GUUID']['objects'][1].insert(0, uuid.uuid4())
+        self.update_message(f'Generating new GUID.')
+        self.componentDict['GUID']['objects'][1].delete(0, END)
+        self.componentDict['GUID']['objects'][1].insert(0, uuid.uuid4())
 
     def update_server_command(self, thread_factory, thread):
         '''
@@ -198,31 +224,29 @@ class App:
         Working.
         Tranfer this to its own thread.
         '''
-        INSTALL_DIR = self.get_value(self.componentDict['InstallDir']['objects'][1])
+        self.INSTALL_DIR = self.get_value(self.componentDict['InstallDir']['objects'][1])
         BRANCH = self.get_value(self.componentDict['Branch']['objects'][1])
         AG_AUTH_TOKEN = self.get_value(self.componentDict['AuthToken']['objects'][1])
         try:
-            if not INSTALL_DIR == '' and not BRANCH == '' and not AG_AUTH_TOKEN == '':
+            if not self.INSTALL_DIR == '' and not BRANCH == '' and not AG_AUTH_TOKEN == '':
                 self.update_message(f'Updating server files.')
                 if os.path.exists('AlderonGamesCMD_x64.exe'):
                     exe = os.path.abspath('AlderonGamesCMD_x64.exe')
-                    sUpdateServerCommand = f'{exe} --game path-of-titans --server true --beta-branch {BRANCH} --auth-token {AG_AUTH_TOKEN} --install-dir "{INSTALL_DIR}"'
-                    # This does not close out all the way, when its done the software says 'finished'
-                    # if the user closes the cmd window it apears to close the server manager as well.
+                    sUpdateServerCommand = f'{exe} --game path-of-titans --server true --beta-branch {BRANCH} --auth-token {AG_AUTH_TOKEN} --install-dir "{self.INSTALL_DIR}"'
                     result = subprocess.run(sUpdateServerCommand, capture_output=True, text=True)
+                    
                     if result.returncode == 0:
-                        #Need to check the status of the thread when we move this to the thread factory.
                         self.update_message(f'{result.stdout}')
                         self.update_message(f'Install / Update complete.')
                         thread_factory.kill_thread(thread_factory.threads[id(thread)])
                 else:
                     self.update_message(f'You need to download the AlderonGameCMD_x64.exe file first.')
             else:
-                self.update_message(f'Error: Auth Token, GUUID, and Install Dir must not be empty.')
+                self.update_message(f'Error: Auth Token, GUID, and Install Dir must not be empty.')
         except PermissionError as e:
             self.update_message(f'{e}')
 
-    def server_start(self):
+    def server_start(self, thread_factory, thread):
         '''
         Works, need to add map as well.
         needs its own thread. locks up main program.
@@ -231,21 +255,22 @@ class App:
         SERVER_PORT = self.get_value(self.componentDict['Port']['objects'][1])
         BRANCH = self.get_value(self.componentDict['Branch']['objects'][1])
         AG_AUTH_TOKEN = self.get_value(self.componentDict['AuthToken']['objects'][1])
-        SERVER_GUUID = self.get_value(self.componentDict['GUUID']['objects'][1])
+        SERVER_GUID = self.get_value(self.componentDict['GUID']['objects'][1])
         SERVER_DATABASE = self.get_value(self.componentDict['Database']['objects'][1])
         SERVER_MAP = self.get_value(self.componentDict['Map']['objects'][1])
 
         try:
-            if not INSTALL_DIR == '' and not BRANCH == '' and not AG_AUTH_TOKEN == '' and not SERVER_PORT == '' and not SERVER_GUUID == '' and not SERVER_DATABASE == '' and not SERVER_MAP == '':
+            if not INSTALL_DIR == '' and not BRANCH == '' and not AG_AUTH_TOKEN == '' and not SERVER_PORT == '' and not SERVER_GUID == '' and not SERVER_DATABASE == '' and not SERVER_MAP == '':
                 self.update_message(f'Starting server .')
                 if os.path.exists('AlderonGamesCMD_x64.exe'):
                     self.update_message(f'Checking path: {INSTALL_DIR}{serverExeLocation}')
                     if os.path.exists(f'{INSTALL_DIR}{serverExeLocation}'):
                         exe = f'{INSTALL_DIR}{serverExeLocation}'
-                        sUpdateServerCommand = f'{INSTALL_DIR}{serverExeLocation} --game path-of-titans -ServerMap={SERVER_MAP} -Port={SERVER_PORT} -BranchKey={BRANCH} -log -AuthToken={AG_AUTH_TOKEN} -ServerGUID={SERVER_GUUID} -Database={SERVER_DATABASE}'
-                        # This does not close out all the way, when its done the software says 'finished'
-                        # if the user closes the cmd window it apears to close the server manager as well.
-                        if subprocess.run(sUpdateServerCommand) == 0:
+                        sUpdateServerCommand = f'{INSTALL_DIR}{serverExeLocation} --game path-of-titans -ServerMap={SERVER_MAP} -Port={SERVER_PORT} -BranchKey={BRANCH} -log -AuthToken={AG_AUTH_TOKEN} -ServerGUID={SERVER_GUID} -Database={SERVER_DATABASE}'
+                        result = subprocess.run(sUpdateServerCommand, capture_output=True, text=True)
+                        
+                        if result.returncode == 0:
+                            self.update_message(f'{result.stdout}')
                             self.update_message(f'Server Started.')
                     else:
                         self.update_message(f'Make sure your install directory is setup properly or that you have\n installed the server.')
@@ -292,6 +317,12 @@ class App:
         self.tkSb.pack(side=RIGHT, fill='y')
         self.tkSb.config(command=self.message.yview)
 
+        #Config file read.
+        self.update_message('Reading configuration information.')
+        self.config = self.configManager.read_entire_config()
+        self.INSTALL_DIR = self.config['PATHS']['installdir']
+        self.update_message('Config file read. Loading values.')
+
         #deploy labels, more compact than having a bunch of label blocks.
         count = 0
         for l in self.labelList:
@@ -321,12 +352,18 @@ class App:
             e["fg"] = self.entryForgroundColor
             e["justify"] = self.entryJustify
             e["text"] = ''
+            for section in self.config:
+                for option in self.config[section]:
+                    if l.lower() == option:
+                        e.insert(0, self.config[section][option])
+
             if l == 'InstallDir':
                 e.place(x=self.entryXStart,y=step,width=256,height=self.entryHeight)
-            elif l == 'GUUID':
+            elif l == 'GUID':
                 e.place(x=self.entryXStart,y=step,width=256,height=self.entryHeight)
             else:
                 e.place(x=self.entryXStart,y=step,width=self.entryWidth,height=self.entryHeight)
+            
             
             self.componentDict[self.labelList[count]]['objects'].append(e)
 
@@ -346,18 +383,17 @@ class App:
         tt.bind_widget(button_get_install_Dir, balloonmsg='Select the directory to install the server. default is the server manager root dir.')
 
         #Get the install directory for the server.
-        button_get_new_guuid=tk.Button(root)
-        button_get_new_guuid["bg"] = "#f0f0f0"
+        button_get_new_guid=tk.Button(root)
+        button_get_new_guid["bg"] = "#f0f0f0"
         ft = tkFont.Font(family='Times',size=10)
-        button_get_new_guuid["font"] = ft
-        button_get_new_guuid["fg"] = "#000000"
-        button_get_new_guuid["justify"] = "center"
-        button_get_new_guuid["text"] = "."
-        button_get_new_guuid.place(x=self.entryXStart+258,y=110,width=16,height=self.entryHeight)
-        button_get_new_guuid["command"] = lambda : self.get_new_guuid()
-        tt.bind_widget(button_get_new_guuid, balloonmsg='This will generate a new guuid for your server')
+        button_get_new_guid["font"] = ft
+        button_get_new_guid["fg"] = "#000000"
+        button_get_new_guid["justify"] = "center"
+        button_get_new_guid["text"] = "."
+        button_get_new_guid.place(x=self.entryXStart+258,y=110,width=16,height=self.entryHeight)
+        button_get_new_guid["command"] = lambda : self.get_new_guid()
+        tt.bind_widget(button_get_new_guid, balloonmsg='This will generate a new guid for your server')
                                       
-
         #ComboBox for Database selection.
         self.comboBox_database=ttk.Combobox(
             state='readonly',
@@ -386,6 +422,7 @@ class App:
         self.comboBox_map.set('Gondwa')
         self.comboBox_map.bind('<<ComboboxSelected>>', self.combo_box_map_selection_changed)
         self.comboBox_map.place(x=self.entryXStart,y=230,width=self.entryWidth,height=self.entryHeight)
+        tt.bind_widget(self.comboBox_map, balloonmsg=MSG_TT_SERVER_MAP)
 
         self.componentDict['Database']['objects'].append(self.comboBox_database)
         self.componentDict['Branch']['objects'].append(self.comboBox_branch)
@@ -400,13 +437,9 @@ class App:
         button_install_alderon_cmd["justify"] = "center"
         button_install_alderon_cmd["text"] = "Install AlderonCMD"
         button_install_alderon_cmd.place(x=30,y=256,width=120,height=25)
-        downloadThread = threading.Thread(target=download_AlderonGamesCMD_thread, args=('downloadThread', self.update_message, self.threads))
-        #Super cluedgy.... will fix later.
-        self.threads['downloadThread'] = []
-        self.threads['downloadThread'].append(downloadThread)
-        self.threads['downloadThread'].append(False)
-        button_install_alderon_cmd["command"] = lambda : download_thread_helper("downloadThread", self.threads)
-        #button_install_alderon_cmd["command"] = lambda : download_AlderonGamesCMD(update_message, messageVar)
+        install_alderon_thread = self.thread_factory.create(download_AlderonGamesCMD, args=(self.thread_factory, 'install alderon thread', self.update_message))
+        button_install_alderon_cmd["command"] = lambda : install_alderon_thread.start()
+        tt.bind_widget(button_install_alderon_cmd, balloonmsg='Downloads the AlderonGamesCMD_x64.exe')
 
         button_install_server=tk.Button(root)
         button_install_server["bg"] = "#f0f0f0"
@@ -418,6 +451,7 @@ class App:
         button_install_server.place(x=30,y=286,width=100,height=25)
         install_thread = self.thread_factory.create(self.update_server_command, args=(self.thread_factory, 'install thread'))
         button_install_server["command"] = lambda : install_thread.start()
+        tt.bind_widget(button_install_server, balloonmsg='Downloads the Path of Titans server files.')
 
         button_update_server=tk.Button(root)
         button_update_server["bg"] = "#f0f0f0"
@@ -427,7 +461,9 @@ class App:
         button_update_server["justify"] = "center"
         button_update_server["text"] = "Update Server"
         button_update_server.place(x=30,y=316,width=100,height=25)
-        button_update_server["command"] = lambda : self.update_server_command()
+        update_thread = self.thread_factory.create(self.update_server_command, args=(self.thread_factory, 'update thread'))
+        button_install_server["command"] = lambda : update_thread.start()
+        tt.bind_widget(button_install_server, balloonmsg='Updates the Path of Titans server files.')
 
         button_server_run=tk.Button(root)
         button_server_run["bg"] = "#f0f0f0"
@@ -437,7 +473,9 @@ class App:
         button_server_run["justify"] = "center"
         button_server_run["text"] = "Start Server"
         button_server_run.place(x=140,y=316,width=100,height=25)
-        button_server_run["command"] = lambda : self.server_start()
+        run_server_thread = self.thread_factory.create(self.server_start, args=(self.thread_factory, 'run server thread'))
+        button_server_run["command"] = lambda : self.run_server_thread.start()
+
 
         button_exit_program=tk.Button(root)
         button_exit_program["bg"] = "#f0f0f0"
@@ -492,21 +530,7 @@ def get_token_from_file():
             #once we have the token save it to the .token file
             pass
 
-def download_thread_helper(name, threads):
-    '''
-    gross way of dealing with the download thread. 
-    I don't like this, short on time and need to fix later.
-    '''
-    if name in threads:
-        if not threads[name][1] == True:
-            threads[name][0].start()
-        else:
-            threads[name][0].join()
-            print(f'[Thread] - {name} killed.')
-            del threads[name]
-
-def download_AlderonGamesCMD_thread(name, update_message_func, threads):
-    print(f'Threads contents: {threads}')
+def download_AlderonGamesCMD(thread_factory, thread, update_message_func):
     if not os.path.exists('AlderonGamesCMD_x64.exe'):
         update_message_func(f'Downloading AslersonGamesCMD_x64.exe\n')
         with requests.get(AlderonGamesCMDURL, stream=True) as response:
@@ -520,9 +544,7 @@ def download_AlderonGamesCMD_thread(name, update_message_func, threads):
                         update_message_func(".", nl=False)
                         count = 0
             update_message_func('Download complete.')
-            threads[name][1] = True
-            print(f'Threads contents: {threads}')
+            thread_factory.kill_thread(thread_factory.threads[id(thread)])
     else:
         update_message_func(f'AlderonGamesCMD is already installed.')
-        threads[name][1] = True
-        print(f'Threads contents: {threads}')
+        thread_factory.kill_thread(thread_factory.threads[id(thread)])
