@@ -10,6 +10,12 @@ Updates:    01/08/2024  Moved App class to its own module.
                         thread_factory is working, need to migrate the rest of the 
                             threads to use thread factory.
                         added exit button to allow for proper program termination.
+                        added settingsEditor.py module for editing Game.ini settings in app.
+                             SettingsEditor window is dynamicly created based on the contents of Game.ini
+                             if nothing exists in game.ini the window will not populate any settings.
+                             will add feature later to add settings, so user does not 
+                             have to find Game.ini and edit manually.
+                        added a proper menu bar. will migrate buttons to the menu bar.
 
                         
        
@@ -30,6 +36,7 @@ import uuid
 import configparser as cp
 import threading
 import socket
+from settingsEditor import GameSettingsEditor
 import log
 from err import error
 
@@ -72,7 +79,55 @@ class App:
 
         self.thread_factory = thread_factory
         self.threads = {}
-        self.create_gui(root, tt)
+        self.root = root
+
+  # Create the menu bar
+        menubar = tk.Menu(root)
+        
+        # Create the File menu
+        file_menu = tk.Menu(menubar, tearoff=0)
+        file_menu.add_command(label="New", command=self.new_file)
+        file_menu.add_command(label="Open", command=self.open_file)
+        file_menu.add_command(label="Save", command=self.save_file)
+        file_menu.add_separator()
+        file_menu.add_command(label="Exit", command=root.destroy)
+        
+        # Add the File menu to the menu bar
+        menubar.add_cascade(label="File", menu=file_menu)
+
+        # Create the Edit menu
+        edit_menu = tk.Menu(menubar, tearoff=0)
+        edit_menu.add_command(label="Game.ini", command=self.edit_game_ini)
+        
+        # Add the Edit menu to the menu bar
+        menubar.add_cascade(label="Edit", menu=edit_menu)
+        
+        # Set the menu bar
+        self.root.config(menu=menubar)
+        self.create_gui(self.root, tt)
+
+    def new_file(self):
+        print("New file")
+
+    def open_file(self):
+        print("Open file")
+
+    def save_file(self):
+        print("Save file")
+
+    def edit_game_ini(self):
+        # Initialize and open the GameSettingsEditor window
+        settings_editor_window = tk.Toplevel(self.root)
+        settings_editor = GameSettingsEditor(settings_editor_window)
+        settings_editor_window.transient(self.root)
+        settings_editor_window.grab_set()
+        self.root.wait_window(settings_editor_window)
+
+    def copy(self):
+        print("Copy")
+
+    def paste(self):
+        print("Paste")
 
     def get_value(self, entry):
         '''
