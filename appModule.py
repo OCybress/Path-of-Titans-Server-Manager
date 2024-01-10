@@ -41,8 +41,6 @@ import log
 from err import error
 from configManager import ConfigManager
 
-'TODO: Setup versioning..'
-
 appGUID = 'e8f0cabc-14e4-4d04-952b-613e6112400f'
 AlderonGamesCMDURL = 'https://launcher-cdn.alderongames.com/AlderonGamesCmd-Win64.exe'
 GUIDRequestUrl = 'https://duckduckgo.com/?q=random+guid&atb=v296-1&ia=answer'
@@ -259,23 +257,28 @@ class App:
 
     def update_server_command(self, thread_factory, thread):
         '''
-        Installs / updates the alderonGamesCMD_x64
-        Working.
-        Tranfer this to its own thread.
+        Updates the server files by running a command using the provided installation directory, branch, and authentication token.
+
+        Args:
+            thread_factory (ThreadFactory): The thread factory object.
+            thread (Thread): The thread object.
+
+        Returns:
+            None
         '''
-        self.INSTALL_DIR = self.get_value(self.componentDict['InstallDir']['objects'][1])
-        BRANCH = self.get_value(self.componentDict['Branch']['objects'][1])
-        AG_AUTH_TOKEN = self.get_value(self.componentDict['AuthToken']['objects'][1])
+        #self.INSTALL_DIR = self.get_value(self.componentDict['InstallDir']['objects'][1])
+        #self.BRANCH = self.get_value(self.componentDict['Branch']['objects'][1])
+        #self.AG_AUTH_TOKEN = self.get_value(self.componentDict['AuthToken']['objects'][1])
         try:
-            if not self.INSTALL_DIR == '' and not BRANCH == '' and not AG_AUTH_TOKEN == '':
+            if not self.INSTALL_DIR == '' and not self.SERVER_BRANCH == '' and not self.AG_AUTH_TOKEN == '':
                 self.update_message(f'Updating server files.')
                 if os.path.exists('AlderonGamesCMD_x64.exe'):
                     self.update_message('AlderonGamesCMD_x64.exe found.')
-                    exe = os.path.abspath('AlderonGamesCMD_x64.exe')
-                    sUpdateServerCommand = f'{exe} --game path-of-titans --server true --beta-branch {BRANCH} --auth-token {AG_AUTH_TOKEN} --install-dir {self.INSTALL_DIR}'
-                    self.update_message(f'running command: {sUpdateServerCommand}')
+                    self.exe = os.path.abspath('AlderonGamesCMD_x64.exe')
+                    self.sUpdateServerCommand = f'{self.exe} --game path-of-titans --server true --beta-branch {self.SERVER_BRANCH} --auth-token {self.AG_AUTH_TOKEN} --install-dir {self.INSTALL_DIR}'
+                    self.update_message(f'running command: {self.sUpdateServerCommand}')
                     try:
-                        result = subprocess.run(sUpdateServerCommand, capture_output=True, text=True, timeout=30)
+                        result = subprocess.run(self.sUpdateServerCommand, capture_output=True, text=True, timeout=30)
 
                         if result.returncode == 0:
                             if result.stdout:
