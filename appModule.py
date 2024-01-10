@@ -19,11 +19,7 @@ Updates:    01/08/2024  Moved App class to its own module.
             01-08-2024  integrated settings Editor.
                         integrated config manager.
                         Moved all threads to Thread Factory
-                        Program now reads ./config/config.ini to load user saved settings ( profile )
-
-                        
-       
-            
+                        Program now reads ./config/config.ini to load user saved settings ( profile ) 
 '''
 import os
 import sys
@@ -64,72 +60,80 @@ MSG_TT_SERVER_INSTALL = 'Downloads the Path of Titans server files.'
 MSG_TT_SERVER_UPDATE = 'Updates the Path of Titans server files.'
 
 class App:
-    def __init__(self, root, tt, thread_factory):
-        '''
-        lists of names and display text for buttons, labels, etc.
-        '''
-        self.labelList = ['ServerName', 'AuthToken', 'Port', 'GUID', 'InstallDir', 'Database', 'Branch', 'Map']
-        self.labelText = ['Server Name', 'Auth Token', 'Port', 'GUID', 'Install Dir', 'Database', 'Branch', 'Map']
-        self.entryList = ['ServerName', 'AuthToken', 'Port', 'GUID', 'InstallDir']
-        self.buttonList = ['StartServer','StopServer','UpdateServer']
-        self.buttonText = ['Start Server','Stop Server','Update Server']
+    def __init__(self, root, tt, thread_factory, dev=False):
+            '''
+            Initialize the appModule class.
 
-        self.yStart = 20
-        self.yStep = 30
-        self.xStart = 20
-        self.entryXStart = 120
-        self.labelWidth = 70
-        self.labelHeight = 25
-        self.labelJustify = 'left'
-        self.labelForgroundColor = "#333333"
-        self.entryWidth = 128
-        self.entryHeight = 25
-        self.entryJustify = 'left'
-        self.entryForgroundColor = "#333333"
+            Args:
+                root (tkinter.Tk): The root window of the application.
+                tt (ttk.Style): The ttk style object.
+                thread_factory (ThreadFactory): The thread factory object.
+                dev (bool, optional): Flag indicating if the application is in development mode. Defaults to False.
+            '''
+            self.development = dev
 
-        #Server config information
-        self.INSTALL_DIR = StringVar()
-        self.SERVER_NAME = StringVar()
-        self.SERVER_PORT = StringVar()
-        self.SERVER_BRANCH = StringVar()
-        self.SERVER_DATABASE = StringVar()
-        self.SERVER_GUID = StringVar()
-        self.AUTH_TOKEN = StringVar()
+            self.labelList = ['ServerName', 'AuthToken', 'Port', 'GUID', 'InstallDir', 'Database', 'Branch', 'Map']
+            self.labelText = ['Server Name', 'Auth Token', 'Port', 'GUID', 'Install Dir', 'Database', 'Branch', 'Map']
+            self.entryList = ['ServerName', 'AuthToken', 'Port', 'GUID', 'InstallDir']
+            self.buttonList = ['StartServer','StopServer','UpdateServer']
+            self.buttonText = ['Start Server','Stop Server','Update Server']
 
-        '''
-        {LabelName:{objects: [tkinterLabel, [tkinkerEntry|button|message]}}
-        '''
-        self.componentDict = {}
+            self.yStart = 20
+            self.yStep = 30
+            self.xStart = 20
+            self.entryXStart = 120
+            self.labelWidth = 70
+            self.labelHeight = 25
+            self.labelJustify = 'left'
+            self.labelForgroundColor = "#333333"
+            self.entryWidth = 128
+            self.entryHeight = 25
+            self.entryJustify = 'left'
+            self.entryForgroundColor = "#333333"
 
-        self.configManager = ConfigManager('./config/config.ini')
-        self.thread_factory = thread_factory
-        self.threads = {}
-        self.root = root
+            #Server config information
+            self.INSTALL_DIR = StringVar()
+            self.SERVER_NAME = StringVar()
+            self.SERVER_PORT = StringVar()
+            self.SERVER_BRANCH = StringVar()
+            self.SERVER_DATABASE = StringVar()
+            self.SERVER_GUID = StringVar()
+            self.AUTH_TOKEN = StringVar()
 
-  # Create the menu bar
-        menubar = tk.Menu(root)
-        
-        # Create the File menu
-        file_menu = tk.Menu(menubar, tearoff=0)
-        file_menu.add_command(label="New", command=self.new_file)
-        file_menu.add_command(label="Open", command=self.open_file)
-        file_menu.add_command(label="Save", command=self.save_file)
-        file_menu.add_separator()
-        file_menu.add_command(label="Exit", command=root.destroy)
-        
-        # Add the File menu to the menu bar
-        menubar.add_cascade(label="File", menu=file_menu)
+            '''
+            {LabelName:{objects: [tkinterLabel, [tkinkerEntry|button|message]}}
+            '''
+            self.componentDict = {}
 
-        # Create the Edit menu
-        edit_menu = tk.Menu(menubar, tearoff=0)
-        edit_menu.add_command(label="Game.ini", command=self.edit_game_ini)
-        
-        # Add the Edit menu to the menu bar
-        menubar.add_cascade(label="Edit", menu=edit_menu)
-        
-        # Set the menu bar
-        self.root.config(menu=menubar)
-        self.create_gui(self.root, tt)
+            self.configManager = ConfigManager('./config/config.ini')
+            self.thread_factory = thread_factory
+            self.threads = {}
+            self.root = root
+
+            # Create the menu bar
+            menubar = tk.Menu(root)
+            
+            # Create the File menu
+            file_menu = tk.Menu(menubar, tearoff=0)
+            file_menu.add_command(label="New", command=self.new_file)
+            file_menu.add_command(label="Open", command=self.open_file)
+            file_menu.add_command(label="Save", command=self.save_file)
+            file_menu.add_separator()
+            file_menu.add_command(label="Exit", command=root.destroy)
+            
+            # Add the File menu to the menu bar
+            menubar.add_cascade(label="File", menu=file_menu)
+
+            # Create the Edit menu
+            edit_menu = tk.Menu(menubar, tearoff=0)
+            edit_menu.add_command(label="Game.ini", command=self.edit_game_ini)
+            
+            # Add the Edit menu to the menu bar
+            menubar.add_cascade(label="Edit", menu=edit_menu)
+            
+            # Set the menu bar
+            self.root.config(menu=menubar)
+            self.create_gui(self.root, tt)
 
     def new_file(self):
         print("New file")
@@ -141,7 +145,13 @@ class App:
         print("Save file")
 
     def edit_game_ini(self):
-        # Initialize and open the GameSettingsEditor window
+        """
+        Opens the GameSettingsEditor window to edit the game.ini file.
+
+        This method initializes and opens the GameSettingsEditor window, which allows the user to modify the game.ini file.
+        The window is created as a Toplevel widget and is transient to the root window.
+        The method waits for the settings_editor_window to be closed before continuing execution.
+        """
         settings_editor_window = tk.Toplevel(self.root)
         settings_editor = GameSettingsEditor(settings_editor_window, self.update_message, self.INSTALL_DIR)
         settings_editor_window.transient(self.root)
@@ -156,26 +166,50 @@ class App:
 
     def get_value(self, entry):
         '''
-        get a value stored in a tk object
+        Get the value stored in a Tkinter entry object.
+
+        Parameters:
+            entry (Tkinter.Entry): The Tkinter entry object.
+
+        Returns:
+            str: The value stored in the entry object.
         '''
         return entry.get()
 
     def get_external_ip(self):
-        try:
-            response = requests.get("https://httpbin.org/ip")
-            if response.status_code == 200:
-                external_ip = response.json().get("origin")
-                return external_ip
-            else:
-                return "Unable to fetch external IP"
-        except Exception as e:
-            return f'Error: {e}'
+            """
+            Retrieves the external IP address of the server.
+
+            Returns:
+                str: The external IP address of the server.
+            
+            Raises:
+                Exception: If there is an error while fetching the external IP address.
+            """
+            try:
+                response = requests.get("https://httpbin.org/ip")
+                if response.status_code == 200:
+                    external_ip = response.json().get("origin")
+                    return external_ip
+                else:
+                    return "Unable to fetch external IP"
+            except Exception as e:
+                return f'Error: {e}'
 
     def get_internal_ip(self):
-        try:
-            return socket.gethostbyname(socket.gethostname())
-        except Exception as e:
-            return f'Error: {e}'
+            """
+            Get the internal IP address of the host machine.
+
+            Returns:
+                str: The internal IP address of the host machine.
+            
+            Raises:
+                Exception: If an error occurs while retrieving the IP address.
+            """
+            try:
+                return socket.gethostbyname(socket.gethostname())
+            except Exception as e:
+                return f'Error: {e}'
 
     def update_message(self, var, nl=True):
         '''
@@ -197,26 +231,31 @@ class App:
         self.message.yview_moveto(1.0)
 
     def get_install_dir(self):
-        '''
-        When the user clicks the directory icon this function
-        asks them where they would like to install.
-        '''
-        self.update_message(f'Getting install dir.')
-        self.componentDict[self.labelList[4]]['objects'][1].delete(0, END)
-        x = filedialog.askdirectory(
-            initialdir=Path('.\\').parent
-            )
-        self.update_message(f'Got dir: {x}')
-        self.componentDict[self.labelList[4]]['objects'][1].insert(0, x)
-        self.INSTALL_DIR = x
+            '''
+            When the user clicks the directory icon this function
+            asks them where they would like to install.
+
+            Returns:
+            - str: The selected installation directory.
+            '''
+            self.update_message(f'Getting install dir.')
+            self.componentDict[self.labelList[4]]['objects'][1].delete(0, END)
+            x = filedialog.askdirectory(
+                initialdir=Path('.\\').parent
+                )
+            self.update_message(f'Got dir: {x}')
+            self.componentDict[self.labelList[4]]['objects'][1].insert(0, x)
+            self.INSTALL_DIR = x
+            return x
 
     def get_new_guid(self):
-        '''
-        Generates a new GUID for the server, this is required to create a server.
-        '''
-        self.update_message(f'Generating new GUID.')
-        self.componentDict['GUID']['objects'][1].delete(0, END)
-        self.componentDict['GUID']['objects'][1].insert(0, uuid.uuid4())
+            '''
+            Returns:
+                str: A new GUID generated using the uuid.uuid4() function.
+            '''
+            self.update_message(f'Generating new GUID.')
+            self.componentDict['GUID']['objects'][1].delete(0, END)
+            self.componentDict['GUID']['objects'][1].insert(0, uuid.uuid4())
 
     def update_server_command(self, thread_factory, thread):
         '''
@@ -231,26 +270,49 @@ class App:
             if not self.INSTALL_DIR == '' and not BRANCH == '' and not AG_AUTH_TOKEN == '':
                 self.update_message(f'Updating server files.')
                 if os.path.exists('AlderonGamesCMD_x64.exe'):
+                    self.update_message('AlderonGamesCMD_x64.exe found.')
                     exe = os.path.abspath('AlderonGamesCMD_x64.exe')
-                    sUpdateServerCommand = f'{exe} --game path-of-titans --server true --beta-branch {BRANCH} --auth-token {AG_AUTH_TOKEN} --install-dir "{self.INSTALL_DIR}"'
-                    result = subprocess.run(sUpdateServerCommand, capture_output=True, text=True)
-                    
-                    if result.returncode == 0:
-                        self.update_message(f'{result.stdout}')
-                        self.update_message(f'Install / Update complete.')
-                        thread_factory.kill_thread(thread_factory.threads[id(thread)])
+                    sUpdateServerCommand = f'{exe} --game path-of-titans --server true --beta-branch {BRANCH} --auth-token {AG_AUTH_TOKEN} --install-dir {self.INSTALL_DIR}'
+                    self.update_message(f'running command: {sUpdateServerCommand}')
+                    try:
+                        result = subprocess.run(sUpdateServerCommand, capture_output=True, text=True, timeout=30)
+
+                        if result.returncode == 0:
+                            if result.stdout:
+                                self.update_message(f'{result.stdout}')
+                                self.update_message(f'Install / Update complete.')
+                                thread_factory.kill_thread(thread_factory.threads[id(thread)])
+                            if result.stderr:
+                                self.update_message(f'{result.stderr}')
+                                self.update_message(f'Install / Update complete.')
+                                thread_factory.kill_thread(thread_factory.threads[id(thread)])
+
+                    except subprocess.TimeoutExpired:
+                        self.update_message('The command took too long to complete')
                 else:
                     self.update_message(f'You need to download the AlderonGameCMD_x64.exe file first.')
+                    thread_factory.kill_thread(thread_factory.threads[id(thread)])
             else:
                 self.update_message(f'Error: Auth Token, GUID, and Install Dir must not be empty.')
+                thread_factory.kill_thread(thread_factory.threads[id(thread)])
         except PermissionError as e:
             self.update_message(f'{e}')
+            thread_factory.kill_thread(thread_factory.threads[id(thread)])
 
     def server_start(self, thread_factory, thread):
-        '''
-        Works, need to add map as well.
-        needs its own thread. locks up main program.
-        '''
+        """
+        Starts the server with the given parameters.
+
+        This function retrieves the necessary parameters from the application's GUI fields, constructs the server start command, and then runs it using the subprocess module. If the server starts successfully, it updates the GUI with a success message. If there's an error (like a missing executable or a permission error), it updates the GUI with an error message and kills the thread.
+
+        Parameters:
+        thread_factory (ThreadFactory): An instance of the ThreadFactory class used to manage threads.
+        thread (Thread): The thread that this function is running on.
+
+        Returns:
+        None
+        """
+
         INSTALL_DIR = self.get_value(self.componentDict['InstallDir']['objects'][1])
         SERVER_PORT = self.get_value(self.componentDict['Port']['objects'][1])
         BRANCH = self.get_value(self.componentDict['Branch']['objects'][1])
@@ -258,28 +320,34 @@ class App:
         SERVER_GUID = self.get_value(self.componentDict['GUID']['objects'][1])
         SERVER_DATABASE = self.get_value(self.componentDict['Database']['objects'][1])
         SERVER_MAP = self.get_value(self.componentDict['Map']['objects'][1])
+        print(f'{INSTALL_DIR}:{SERVER_PORT}:{BRANCH}:{AG_AUTH_TOKEN}:{SERVER_GUID}:{SERVER_DATABASE}:{SERVER_MAP}')
 
         try:
-            if not INSTALL_DIR == '' and not BRANCH == '' and not AG_AUTH_TOKEN == '' and not SERVER_PORT == '' and not SERVER_GUID == '' and not SERVER_DATABASE == '' and not SERVER_MAP == '':
+            if not INSTALL_DIR == '' and not BRANCH == '' and not AG_AUTH_TOKEN == '' and not SERVER_PORT == '' and not SERVER_GUID == '' and not SERVER_DATABASE == '':
                 self.update_message(f'Starting server .')
                 if os.path.exists('AlderonGamesCMD_x64.exe'):
                     self.update_message(f'Checking path: {INSTALL_DIR}{serverExeLocation}')
                     if os.path.exists(f'{INSTALL_DIR}{serverExeLocation}'):
                         exe = f'{INSTALL_DIR}{serverExeLocation}'
-                        sUpdateServerCommand = f'{INSTALL_DIR}{serverExeLocation} --game path-of-titans -ServerMap={SERVER_MAP} -Port={SERVER_PORT} -BranchKey={BRANCH} -log -AuthToken={AG_AUTH_TOKEN} -ServerGUID={SERVER_GUID} -Database={SERVER_DATABASE}'
-                        result = subprocess.run(sUpdateServerCommand, capture_output=True, text=True)
-                        
+                        sServerStartCommand = f'{INSTALL_DIR}{serverExeLocation} --game path-of-titans -Port={SERVER_PORT} -BranchKey={BRANCH} -log -AuthToken={AG_AUTH_TOKEN} -ServerGUID={SERVER_GUID} -Database={SERVER_DATABASE}'
+                        result = subprocess.run(sServerStartCommand, capture_output=True, text=True)
+
                         if result.returncode == 0:
-                            self.update_message(f'{result.stdout}')
-                            self.update_message(f'Server Started.')
+                            if result.stdout:
+                                self.update_message(f'{result.stdout}')
+                                self.update_message(f'Server is running.')
                     else:
                         self.update_message(f'Make sure your install directory is setup properly or that you have\n installed the server.')
+                        thread_factory.kill_thread(thread_factory.threads[id(thread)])
                 else:
                     self.update_message(f'You need to download the AlderonGameCMD_x64.exe file first.')
+                    thread_factory.kill_thread(thread_factory.threads[id(thread)])
             else:
                 self.update_message(f'Error, one or more required options are empty')
+                thread_factory.kill_thread(thread_factory.threads[id(thread)])
         except PermissionError as e:
             self.update_message(f'{e}')
+            thread_factory.kill_thread(thread_factory.threads[id(thread)])
 
     def combo_box_database_selection_changed(self, event):
         selection = self.comboBox_database.get()
@@ -293,6 +361,18 @@ class App:
         selection = self.comboBox_map.get()
         print(f'Selected option: {selection}')
 
+    def create_gui(self, root, tt):
+        """
+        Creates the graphical user interface for the Path of Titans Server Manager.
+
+        Parameters:
+        - root: The root Tkinter window object.
+        - tt: The ToolTip object for displaying tooltips.
+
+        Returns:
+        None
+        """
+        # Code for creating the GUI...
     def create_gui(self, root, tt):
 
         #setting title
@@ -317,58 +397,52 @@ class App:
         self.tkSb.pack(side=RIGHT, fill='y')
         self.tkSb.config(command=self.message.yview)
 
+        if self.development:
+            self.update_message('Warning, development mode is enabled.')
+
         #Config file read.
         self.update_message('Reading configuration information.')
         self.config = self.configManager.read_entire_config()
         self.INSTALL_DIR = self.config['PATHS']['installdir']
         self.update_message('Config file read. Loading values.')
 
-        #deploy labels, more compact than having a bunch of label blocks.
-        count = 0
-        for l in self.labelList:
-            l=tk.Label(root)
-            ft = tkFont.Font(family='Times',size=10)
-            l["font"] = ft
-            l["fg"] = self.labelForgroundColor
-            l["justify"] = self.labelJustify
-            l["text"] = self.labelText[count]
-            l.place(x=20,y=self.yStart,width=70,height=25)
+        # Deploy labels, more compact than having a bunch of label blocks.
+        for count, label in enumerate(self.labelList):
+            l = tk.Label(
+                root, 
+                font=tkFont.Font(family='Times', size=10), 
+                fg=self.labelForgroundColor, 
+                justify=self.labelJustify, 
+                text=self.labelText[count]
+            )
+            l.place(x=20, y=self.yStart, width=70, height=25)
             
-            self.componentDict[self.labelList[count]] = {}
-            self.componentDict[self.labelList[count]]['objects'] = {}
-            self.componentDict[self.labelList[count]]['objects'] = []
-            self.componentDict[self.labelList[count]]['objects'].append(l)
+            self.componentDict[label] = {'objects': [l]}
 
-            self.yStart = self.yStart + self.yStep
-            count = count + 1
+            self.yStart += self.yStep
 
-        #deploy entry fields, more compact than having a bunch of entry blocks.
+        # Deploy entry fields, more compact than having a bunch of entry blocks.
         step = 20
-        count = 0
-        for l in self.entryList:
-            e=tk.Entry(root)
-            ft = tkFont.Font(family='Times',size=10)
-            e["font"] = ft
-            e["fg"] = self.entryForgroundColor
-            e["justify"] = self.entryJustify
-            e["text"] = ''
-            for section in self.config:
-                for option in self.config[section]:
-                    if l.lower() == option:
-                        e.insert(0, self.config[section][option])
-
-            if l == 'InstallDir':
-                e.place(x=self.entryXStart,y=step,width=256,height=self.entryHeight)
-            elif l == 'GUID':
-                e.place(x=self.entryXStart,y=step,width=256,height=self.entryHeight)
-            else:
-                e.place(x=self.entryXStart,y=step,width=self.entryWidth,height=self.entryHeight)
+        has_run_for_guid = False
+        if self.development:
+            self.update_message('Getting token from .token')
+            self.AG_AUTH_TOKEN = get_token_from_file(self.update_message)
+        for count, l in enumerate(self.entryList):
+            e = tk.Entry(root, font=tkFont.Font(family='Times', size=10), fg=self.entryForgroundColor, justify=self.entryJustify)
             
+            for section in self.config:
+                option = self.config[section].get(l.lower())
+                if l == 'AuthToken':
+                    e.insert(0, self.AG_AUTH_TOKEN)
+                elif option:
+                    e.insert(0, option)
+
+            width = 256 if l in ['InstallDir', 'AuthToken','GUID'] else self.entryWidth
+            e.place(x=self.entryXStart, y=step, width=width, height=self.entryHeight)
             
             self.componentDict[self.labelList[count]]['objects'].append(e)
 
-            step = step + self.yStep
-            count = count + 1
+            step += self.yStep
 
         #Get the install directory for the server.
         button_get_install_Dir=tk.Button(root)
@@ -437,8 +511,8 @@ class App:
         button_install_alderon_cmd["justify"] = "center"
         button_install_alderon_cmd["text"] = "Install AlderonCMD"
         button_install_alderon_cmd.place(x=30,y=256,width=120,height=25)
-        install_alderon_thread = self.thread_factory.create(download_AlderonGamesCMD, args=(self.thread_factory, 'install alderon thread', self.update_message))
-        button_install_alderon_cmd["command"] = lambda : install_alderon_thread.start()
+        self.install_alderon_thread = self.thread_factory.create(download_AlderonGamesCMD, args=(self.thread_factory, 'install alderon thread', self.update_message))
+        button_install_alderon_cmd["command"] = lambda : self.install_alderon_thread.start()
         tt.bind_widget(button_install_alderon_cmd, balloonmsg='Downloads the AlderonGamesCMD_x64.exe')
 
         button_install_server=tk.Button(root)
@@ -449,8 +523,10 @@ class App:
         button_install_server["justify"] = "center"
         button_install_server["text"] = "Install Server"
         button_install_server.place(x=30,y=286,width=100,height=25)
-        install_thread = self.thread_factory.create(self.update_server_command, args=(self.thread_factory, 'install thread'))
-        button_install_server["command"] = lambda : install_thread.start()
+        #if 'install thread' in self.thread_factory.threads:
+        #    self.thread_factory.kill_thread(id(self.thread_factory.threads['install thread']))
+        self.install_thread = self.thread_factory.create(self.update_server_command, args=(self.thread_factory, 'install thread'))
+        button_install_server["command"] = lambda : self.install_thread.start()
         tt.bind_widget(button_install_server, balloonmsg='Downloads the Path of Titans server files.')
 
         button_update_server=tk.Button(root)
@@ -461,8 +537,8 @@ class App:
         button_update_server["justify"] = "center"
         button_update_server["text"] = "Update Server"
         button_update_server.place(x=30,y=316,width=100,height=25)
-        update_thread = self.thread_factory.create(self.update_server_command, args=(self.thread_factory, 'update thread'))
-        button_install_server["command"] = lambda : update_thread.start()
+        self.update_thread = self.thread_factory.create(self.update_server_command, args=(self.thread_factory, 'update thread'))
+        button_install_server["command"] = lambda : self.update_thread.start()
         tt.bind_widget(button_install_server, balloonmsg='Updates the Path of Titans server files.')
 
         button_server_run=tk.Button(root)
@@ -473,9 +549,8 @@ class App:
         button_server_run["justify"] = "center"
         button_server_run["text"] = "Start Server"
         button_server_run.place(x=140,y=316,width=100,height=25)
-        run_server_thread = self.thread_factory.create(self.server_start, args=(self.thread_factory, 'run server thread'))
+        self.run_server_thread = self.thread_factory.create(self.server_start, args=(self.thread_factory, 'run server thread'))
         button_server_run["command"] = lambda : self.run_server_thread.start()
-
 
         button_exit_program=tk.Button(root)
         button_exit_program["bg"] = "#f0f0f0"
@@ -500,39 +575,36 @@ class App:
         GCheckBox_779["command"] = self.GCheckBox_779_command
         '''
 
-def get_config():
+''' Use this for development. pulls from .token instead of config file, don't upload your token to github. '''
+def get_token_from_file(update_message_func):
     """
-    Reads the config file for the server.
+    Retrieves the token from the .token file.
 
-    Parameters:
-        -None
+    Args:
+        update_message_func (function): A function used to update the message.
 
     Returns:
-    - The config data for the server.
+        str: The token read from the .token file.
     """
-    try:
-        config_dict = {}
-        config.read('./config.cfg')
-        for section in config.sections():
-            config_dict[section] = {}
-            for option in config.options(section):
-                config_dict[section][option] = config.get(section, option)
-        return config_dict
-    except Exception as e:
-        print(f'{e}')
-
-''' now that I think of it config parser would probably be easier to manage all the config stuff. '''
-def get_token_from_file():
     if not os.path.exists('./.token'):
-        #create .Token file to store our auth Token
-        with open('./.token', 'w+') as tFile:
-            #grab token from token input field
-            #once we have the token save it to the .token file
-            pass
+        update_message_func('You need to create a .token file and place your token inside. This is only used for development.')
+    else:
+        update_message_func('.token file exists.')
+        with open('.token', 'r') as tFile:
+            token = tFile.read()
+            return token
 
 def download_AlderonGamesCMD(thread_factory, thread, update_message_func):
+    """
+    Downloads AlderonGamesCMD_x64.exe if it doesn't already exist in the current directory.
+    
+    Args:
+        thread_factory (ThreadFactory): An instance of the ThreadFactory class.
+        thread (Thread): The current thread.
+        update_message_func (function): A function to update the download progress message.
+    """
     if not os.path.exists('AlderonGamesCMD_x64.exe'):
-        update_message_func(f'Downloading AslersonGamesCMD_x64.exe\n')
+        update_message_func(f'Downloading AlderonGamesCMD_x64.exe\n')
         with requests.get(AlderonGamesCMDURL, stream=True) as response:
             response.headers
             with open("AlderonGamesCMD_x64.exe", mode='wb') as file:
@@ -544,7 +616,15 @@ def download_AlderonGamesCMD(thread_factory, thread, update_message_func):
                         update_message_func(".", nl=False)
                         count = 0
             update_message_func('Download complete.')
-            thread_factory.kill_thread(thread_factory.threads[id(thread)])
+            thread_id = id(thread)
+            if thread_id in thread_factory.threads:
+                thread_factory.kill_thread(thread_factory.threads[thread_id])
+            else:
+                print(f'Thread with id {thread_id} does not exist')
     else:
         update_message_func(f'AlderonGamesCMD is already installed.')
-        thread_factory.kill_thread(thread_factory.threads[id(thread)])
+        thread_id = id(thread)
+        if thread_id in thread_factory.threads:
+            thread_factory.kill_thread(thread_factory.threads[thread_id])
+        else:
+            print(f'Thread with id {thread_id} does not exist')

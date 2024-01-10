@@ -14,6 +14,14 @@ from tkinter import ttk, Entry, Checkbutton
 
 class GameSettingsEditor:
     def __init__(self, root, update_message_func, install_dir='./'):
+        """
+        Initializes the Game Settings Editor.
+
+        Args:
+            root (Tk): The root Tkinter window.
+            update_message_func (function): A function to update the message.
+            install_dir (str, optional): The installation directory of the game. Defaults to './'.
+        """
         self.root = root
         self.root.title("Game Settings Editor")
         self.game_ini_path = f'{install_dir}/PathOfTitans/Saved/Config/WindowsServer/Game.ini'
@@ -29,7 +37,6 @@ class GameSettingsEditor:
         self.entry_widgets = []
         self.checkbutton_widgets = []
 
-
         # Set the maximum number of columns
         self.max_columns = 8
 
@@ -39,6 +46,20 @@ class GameSettingsEditor:
         self.create_widgets()
 
     def create_widgets(self):
+        """
+        Create and configure the widgets for the settings editor.
+
+        This method creates a canvas, scrollbar, and frame to hold the settings widgets.
+        It iterates through the sections and options in the configuration file and creates
+        the appropriate widgets for editing each option. The widgets include labels, checkbuttons,
+        sliders, and entry fields. Finally, it adds a save button to save the settings.
+
+        Args:
+            self: The instance of the class.
+
+        Returns:
+            None
+        """
         self.canvas = tk.Canvas(self.root, width=1200, height=600)
         self.canvas.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
 
@@ -102,30 +123,44 @@ class GameSettingsEditor:
         self.canvas.configure(scrollregion=self.canvas.bbox("all"))
 
     def get_value_type(self, value):
-        try:
-            # Attempt to convert the value to boolean
-            bool_value = self.config.getboolean('temp_section', 'temp_option')
-            if bool_value in (True, False):
-                return bool
-        except ValueError:
-            pass
-        except configparser.NoSectionError:
-            pass
+            """
+            Determines the type of the given value.
 
-        try:
-            # Attempt to convert the value to float
-            float_value = float(self.config.get('temp_section', 'temp_option'))
-            return float
-        except ValueError:
-            pass
-        except configparser.NoSectionError:
-            pass
+            Args:
+                value: The value to determine the type of.
 
-        # Default to string if not boolean or float
-        return str
+            Returns:
+                The type of the value. It can be bool, float, or str.
+            """
+            try:
+                # Attempt to convert the value to boolean
+                bool_value = self.config.getboolean('temp_section', 'temp_option')
+                if bool_value in (True, False):
+                    return bool
+            except ValueError:
+                pass
+            except configparser.NoSectionError:
+                pass
+
+            try:
+                # Attempt to convert the value to float
+                float_value = float(self.config.get('temp_section', 'temp_option'))
+                return float
+            except ValueError:
+                pass
+            except configparser.NoSectionError:
+                pass
+
+            # Default to string if not boolean or float
+            return str
 
     def save_settings(self):
-        # Update the configuration with values from widgets
+        """
+        Save the settings by updating the configuration with values from widgets and writing the changes to the file.
+
+        Raises:
+            Exception: If there is an error while saving the settings.
+        """
         try:
             # Update the configuration with values from widgets
             self.update_message('Updating Game.ini')

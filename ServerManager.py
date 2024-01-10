@@ -60,7 +60,10 @@ log.write('Loading modules.\n' + '\n'.join([log.VERSION_STRING, VERSION_STRING, 
 
 def is_admin():
     '''
-    Request admin acess needed for running the AlderonGamesCMD_x64.exe
+    Check if the current user has administrative privileges.
+
+    Returns:
+        bool: True if the user has administrative privileges, False otherwise.
     '''
     try:
         return ctypes.windll.shell32.IsUserAnAdmin()
@@ -68,6 +71,15 @@ def is_admin():
         return False
 
 def cleanup_function(thread_factory):
+    """
+    Cleans up and kills all threads created by the ThreadFactory.
+
+    Args:
+        thread_factory (ThreadFactory): The ThreadFactory object responsible for creating threads.
+
+    Returns:
+        None
+    """
     # Kill the thread using the ThreadFactory
     log.write(f'Killing Threads.')
     for thread in thread_factory.threads:
@@ -77,11 +89,24 @@ def cleanup_function(thread_factory):
         
 # Handle SIGTERM signal
 def signal_handler(signum, frame, thread_factory):
+    """
+    Signal handler function that is called when a signal is received.
+    
+    Args:
+        signum (int): The signal number.
+        frame (frame): The current stack frame.
+        thread_factory (ThreadFactory): An instance of the ThreadFactory class.
+    """
     log.write(f"Received signal {signum}. Cleaning up...")
     cleanup_funcrion(thread_factory)
     sys.exit(0)
 
 def main():
+    """
+    The main function of the server manager program.
+    It initializes the GUI, starts monitoring threads, registers cleanup handlers,
+    and handles the execution flow based on whether the program is run as an administrator or not.
+    """
     try:
         root = tkinter.tix.Tk()
         tt = Balloon(root)
@@ -90,7 +115,7 @@ def main():
         # Start monitoring threads
         thread_factory.start_monitoring()
 
-        app = App(root, tt, thread_factory)
+        app = App(root, tt, thread_factory, True)
 
         log.write("registering cleanup handler...")
         # Register the cleanup function for a normal exit.
@@ -123,8 +148,6 @@ def main():
         cleanup_function(thread_factory)
         sys.exit(0)
 
-    
-    
 
 if __name__ == "__main__":
     main()
